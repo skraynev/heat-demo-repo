@@ -12,7 +12,7 @@
 #    under the License.
 
 from heat.common import exception
-from heat.common.i18n import _
+from heat.openstack.common.gettextutils import _
 from heat.engine import attributes
 from heat.engine import constraints
 from heat.engine import properties
@@ -179,12 +179,24 @@ class ZabbixPing(resource.Resource):
         # create ICMP check
         item_id = self.create_item(host_id)['result']['itemids'][0]
 
-        self.data_set('gr_id', gr_id)
-        self.data_set('host_id', host_id)
-        self.data_set('item_id', item_id)
+#        Avaliable for Juno
+#        self.data_set('gr_id', gr_id)
+#        self.data_set('host_id', host_id)
+#        self.data_set('item_id', item_id)
+        data = "%s-%s-%s" % (gr_id, host_id, item_id)
+        self.resource_id_set(data)
+
+    def parse_data(self, data):
+        res = str(data).split('-')
+        return {
+            'gr_id': res[0],
+            'host_id': res[1],
+            'item_id': res[2]}
 
     def handle_delete(self):
-        data = self.data()
+#        Avaliable for Juno
+#        data = self.data()
+        data = self.parse_data(self.resource_id)
 
         if not data:
             return
