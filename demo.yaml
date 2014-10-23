@@ -1,5 +1,6 @@
 heat_template_version: 2013-05-23
 parameters:
+####################################     BOOT VM PARAMETERS
   image:
     type: string
     default: TestVM
@@ -9,7 +10,7 @@ parameters:
   key_pair:
     type: string
     default: heat_key
-
+####################################     ZABBIX AUTH PARAMETERS
   zb_server:
     type: string
     default: 172.16.40.254
@@ -19,14 +20,7 @@ parameters:
   zb_pass:
     type: string
     default: zabbix
-
-  public_net:
-    type: string
-    default: c01e5d9e-08f0-4dbe-8ed6-3566388e46b5
-  private_net:
-    type: string
-    default: c64651ad-c492-43f4-b2a9-daebc0b901ec
-
+####################################     VYATTA AUTH PARAMETERS
   vy_server:
     type: string
     default: 172.16.40.177
@@ -36,10 +30,17 @@ parameters:
   vy_pass:
     type: string
     default: vyatta
-
+####################################     CONFIGURE NETWORK FOR ZABBIX MONITORING
+  public_net:
+    type: string
+    default: c01e5d9e-08f0-4dbe-8ed6-3566388e46b5
+  private_net:
+    type: string
+    default: c64651ad-c492-43f4-b2a9-daebc0b901ec
+####################################     VYATTA FIREWALL PARAMETERS
   name:
     type: string
-    default: Demo
+    default: Heat_Demo
   rule_id:
     type: string
     default: '10'
@@ -48,9 +49,12 @@ parameters:
     default: '80'
 
 resources:
+
+####################################     DEFAULT RESOURCES
   server:
     type: OS::Nova::Server
     properties:
+      name: heat_server
       image: {get_param: image}
       flavor: {get_param: flavor}
       networks:
@@ -65,7 +69,7 @@ resources:
     properties:
       floating_network_id: {get_param: public_net}
       port_id: { get_resource: server_port }
-
+####################################     CUSTOM RESOURCES
   monitor:
     type: OS::Zabbix::Ping
     properties:
@@ -84,8 +88,3 @@ resources:
       rule_id: {get_param: rule_id}
       port: {get_param: port} 
       ip: {get_attr: [fip, floating_ip_address]}
-
-outputs:
-  val1:
-    description: FIP of server
-    value: {get_attr: [fip, floating_ip_address]}

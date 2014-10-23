@@ -24,7 +24,6 @@ import urlparse
 
 
 class VyattaFirewall(resource.Resource):
-    pass
 
     PROPERTIES = (
         V_SERVER, USER, PASS, NAME, RULE_ID, IP, PORT,
@@ -52,7 +51,7 @@ class VyattaFirewall(resource.Resource):
         NAME: properties.Schema(
             properties.Schema.STRING,
             _('Firewall name.'),
-            default='Demo'
+            default='Heat_Demo'
         ),
         RULE_ID: properties.Schema(
             properties.Schema.STRING,
@@ -71,7 +70,7 @@ class VyattaFirewall(resource.Resource):
         ),
     }
 
-
+################################### CUSTOM FUNCTIONS
     def initialize(self):
         user = self.properties[self.USER]
         password = self.properties[self.PASS]
@@ -132,7 +131,7 @@ class VyattaFirewall(resource.Resource):
         r.raise_for_status()
 
         self.save()
-
+################################### REQUIRED FUNCTIONS
     def handle_create(self):
         self.initialize()
         self.configure()
@@ -155,7 +154,7 @@ class VyattaFirewall(resource.Resource):
         self.configure()
         self.delete_firewall(name)
 
-
+################################### MAPPING CLASS TO RESOURCE NAME
 def resource_mapping():
     return {
         'OS::Vyatta::Firewall': VyattaFirewall,

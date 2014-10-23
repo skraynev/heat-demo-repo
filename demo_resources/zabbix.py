@@ -61,10 +61,10 @@ class ZabbixPing(resource.Resource):
         GROUP_NAME: properties.Schema(
             properties.Schema.STRING,
             _('Name for host group.'),
-            default='demo',
+            default='Heat_Demo',
         ),
     }
-
+################################### CUSTOM FUNCTIONS
     def initial_client(self):
         self.session = requests.Session()
         # Default headers for all requests
@@ -134,7 +134,7 @@ class ZabbixPing(resource.Resource):
     def create_host(self, gr_id):
         ip = self.properties[self.SERVER_IP]
         params = {
-            'host': 'demo_vm',
+            'host': 'Heat_Demo_VM',
             'ip': ip,
             'port':10050,
             'useip':1,
@@ -154,7 +154,7 @@ class ZabbixPing(resource.Resource):
 
     def create_item(self, host_id):
         params={
-            'description': 'Ping host',
+            'description': 'Heat Demo Ping host',
             'type': 3,
             'delay': 5,
             'key_': 'icmpping',
@@ -166,7 +166,7 @@ class ZabbixPing(resource.Resource):
     def delete_item(self, item_id):
         resp = self.do_request('item.delete', params=[item_id])
         return resp
-
+################################### REQUIRED FUNCTIONS
     def handle_create(self):
         # initialize client and get auth for requests
         self.initial_client()
@@ -212,7 +212,7 @@ class ZabbixPing(resource.Resource):
         # delete group
         r1 = self.delete_group(int(data['gr_id']))
 
-
+################################### MAPPING CLASS TO RESOURCE NAME
 def resource_mapping():
     return {
         'OS::Zabbix::Ping': ZabbixPing,
