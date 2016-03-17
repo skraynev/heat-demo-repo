@@ -1,0 +1,163 @@
+heat_template_version: 2015-04-30
+
+description: >
+  Tomcat webapp autoscaled by Ceilometer and AWS LoadBalancer.
+  Changed to use most part of Heat native resources.
+parameters:
+
+  key_name:
+    description: Name of an existing EC2 KeyPair to enable SSH access to the instances
+    type: string
+
+  flavor:
+    description: WebServer EC2 instance type
+    type: string
+    constraints:
+      - allowed_values:
+        - m1.heat
+        - m1.small
+        - m1.medium
+        - m1.large
+        - m1.xlarge
+        description: must be a valid EC2 instance type.
+
+  image:
+    description: the name or uuid of the image in glance
+    type: string
+
+  LbFlavor:
+    description: the special key for providing flavor for LB
+    type: string
+
+  LbImageId:
+    description: the special key for providing image for LB
+    type: string
+
+  proxy:
+    description: HTTPS proxy address to access Tomcat servlet repo
+    type: string
+    default: ""
+
+  availability_zone:
+    type: string
+    description: The Availability Zone to launch the instance.
+    default: nova
+
+resources:
+
+  # need for notification about creating launchConfig
+  CfnUser:
+    type: AWS::IAM::User
+
+  WebServerKeys:
+    type: AWS::IAM::AccessKey
+    properties:
+      UserName: {get_resource: CfnUser}
+
+  WebServerGroup:
+    type: OS::Heat::AutoScalingGroup
+    properties:
+      min_size: 1
+          #2
+      max_size: 3
+      resource:
+        type: OS::Nova::Server
+        properties:
+          image: {get_param: image}
+          flavor: {get_param: flavor}
+          key_name: {get_param: key_name}
+
+  WebServerScaleUpPolicy:
+    type: OS::Heat::ScalingPolicy
+    properties:
+      adjustment_type: change_in_capacity
+      auto_scaling_group_id: {get_resource: WebServerGroup}
+      cooldown: 60
+      scaling_adjustment: 1
+
+  WebServerScaleDownPolicy:
+    type: OS::Heat::ScalingPolicy
+    properties:
+      adjustment_type: change_in_capacity
+      auto_scaling_group_id: {get_resource: WebServerGroup}
+      cooldown: 60
+      scaling_adjustment: -1
+
+  CPUAlarmHigh:
+    type: OS::Ceilometer::Alarm
+    properties:
+      description: Scale-up if the average CPU > 50% for 1 minute
+      meter_name: cpu_util
+      statistic: avg
+      period: '60'
+      evaluation_periods: '1'
+      threshold: '50'
+      alarm_actions:
+      - {get_attr: [WebServerScaleUpPolicy, alarm_url]}
+      matching_metadata: {'metadata.user_metadata.groupname': {get_resource: WebServerGroup}}
+      comparison_operator: gt
+
+  CPUAlarmLow:
+    type: OS::Ceilometer::Alarm
+    properties:
+      description: Scale-down if the average CPU < 15% for 1 minute
+      meter_name: cpu_util
+      statistic: avg
+      period: '60'
+      evaluation_periods: '1'
+      threshold: '15'
+      alarm_actions:
+      - {get_attr: [WebServerScaleDownPolicy, alarm_url]}
+      matching_metadata: {'metadata.user_metadata.groupname': {get_resource: WebServerGroup}}
+      comparison_operator: lt
+
+      #  LoadBalancer:
+      #    type: AWS::ElasticLoadBalancing::LoadBalancer
+      #    properties:
+      #      AvailabilityZones: [{get_param: availability_zone}]
+      #      Listeners:
+      #      - LoadBalancerPort: '80'
+      #        InstancePort: '8080'
+      #        Protocol: HTTP
+      #      HealthCheck:
+      #        Target: 'HTTP:8080/'
+      #        HealthyThreshold: '3'
+      #        UnhealthyThreshold: '5'
+      #        Interval: '30'
+      #        Timeout: '5'
+      #      Instances:
+      #        {get_attr: [WebServerGroup, resource, name]}
+
+#            StackName: {get_param: 'OS::stack_name'}
+#            Region: dsgsdf
+##{get_param: 'OS::region'}
+#            Proxy: {get_param: proxy}
+#          template:
+#            #!/bin/bash -v
+#            /opt/aws/bin/cfn-init -s StackName -r LaunchConfig --region Region
+#            iptables -I INPUT 1 -p tcp -m tcp --dport 8080 -j ACCEPT
+#            appsrc="https://github.com/pshchelo/hello-world-servlet/archive/nodb.tar.gz"
+#            app=/var/lib/tomcat/webapps/hello
+#            mkdir $app
+#            export https_proxy=Proxy
+#            curl -Lk $appsrc | tar xz -C $app --strip-components 1
+#            javac -cp /usr/share/tomcat/lib/tomcat-servlet-3.0-api.jar $app/WEB-INF/classes/HelloServlet.java
+#            systemctl restart tomcat.service
+outputs:
+
+  URL:
+    description: The URL of the website
+    value:
+      str_replace:
+        params:
+          IpAddress: fff #{get_attr: [LoadBalancer, DNSName]}
+        template:
+          http://IpAddress/hello/HelloWorld
+  ScaleUpHook:
+    description: to scale up just make an empty POST request here
+    value: {get_attr: [WebServerScaleUpPolicy, alarm_url]}
+  ScaleDownHook:
+    description: to scale down just make an empty POST request here
+    value: {get_attr: [WebServerGroup, outputs_list, name]}
+        #        - {get_attr: [WebServerScaleDownPolicy, alarm_url]}
+
