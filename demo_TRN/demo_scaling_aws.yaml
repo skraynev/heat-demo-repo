@@ -121,6 +121,11 @@ Resources:
     Metadata:
       AWS::CloudFormation::Init:
         config:
+          packages:
+            yum:
+              java-1.8.0-openjdk-devel: []
+              tomcat: []
+              tomcat-webapps: []
           files:
             /etc/cfn/cfn-credentials:
               content:
@@ -154,7 +159,6 @@ Resources:
             iptables -I INPUT 1 -p tcp -m tcp --dport 8080 -j ACCEPT
             appsrc="https://github.com/pshchelo/hello-world-servlet/archive/nodb.tar.gz"
             app="/var/lib/tomcat/webapps/hello"
-            yum install  -y java-devel tomcat
             mkdir $app
             export https_proxy=Proxy
             curl -Lk $appsrc | tar xz -C $app --strip-components 1
